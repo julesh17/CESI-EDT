@@ -320,12 +320,6 @@
                 <div class="pill-group" id="stats-promo-pills"></div>
             </div>
             <div class="field-group">
-                <label class="field-label">Groupe</label>
-                <select id="stats-group-select" onchange="setStatsGroup(this.value)">
-                    <option value="">Tous les groupes</option>
-                </select>
-            </div>
-            <div class="field-group">
                 <label class="field-label">Vue</label>
                 <div class="pill-group">
                     <button class="pill-btn active" data-mode="subject" onclick="setStatsMode('subject')">Par Matière</button>
@@ -463,7 +457,6 @@ let SUBJECT_COEFF = {};     // { "Matière": coefficient }
 let mailTone = 'tutoiement';
 let statsMode = 'subject';
 let statsPromo = 'P1';
-let statsGroup = ''; // vide = tous les groupes
 let maquettePromo = 'P1';
 let budgetPromo = 'P1';
 
@@ -684,43 +677,13 @@ function initStatsTab() {
         `<button class="pill-btn${p===statsPromo?' active':''}" onclick="setStatsPromo('${p}')">${p}</button>`
     ).join('');
 
-    renderStatsGroupSelect();
+    renderStatsSelect();
 }
 
 function setStatsPromo(promo) {
     statsPromo = promo;
-    statsGroup = '';
     document.querySelectorAll('#stats-promo-pills .pill-btn').forEach(b => b.classList.toggle('active', b.textContent.trim() === promo));
-    renderStatsGroupSelect();
-}
-
-function setStatsGroup(group) {
-    statsGroup = group || '';
     renderStatsSelect();
-}
-
-function renderStatsGroupSelect() {
-    const evsPromo = getPromoEvents(statsPromo);
-    const groups = Array.from(new Set(
-        evsPromo.flatMap(e => (e.groups || []).filter(Boolean))
-    )).sort((a, b) => a.localeCompare(b, 'fr', {numeric: true, sensitivity: 'base'}));
-
-    const sel = document.getElementById('stats-group-select');
-    sel.innerHTML = '<option value="">Tous les groupes</option>' +
-        groups.map(g => `<option value="${esc(g)}">${esc(g)}</option>`).join('');
-    sel.value = statsGroup;
-    renderStatsSelect();
-}
-
-function getStatsEvents() {
-    const evsPromo = getPromoEvents(statsPromo);
-    if (!statsGroup) return evsPromo;
-
-    // Une séance sans groupe explicite concerne toute la promo :
-    // elle reste donc visible lorsqu'un groupe précis est sélectionné.
-    return evsPromo.filter(e =>
-        !e.groups || e.groups.length === 0 || groupMatches(e.groups, statsGroup)
-    );
 }
 
 function setStatsMode(mode) {
@@ -735,7 +698,7 @@ function getPromoEvents(promo) {
 }
 
 function renderStatsSelect() {
-    const evsPromo = getStatsEvents();
+    const evsPromo = getPromoEvents(statsPromo);
     const sel = document.getElementById('stats-select');
 
     let options;
@@ -756,35 +719,27 @@ function renderStatsSelect() {
 }
 
 function renderStatsTable() {
-    const evsPromo = getStatsEvents();
+    const evsPromo = getPromoEvents(statsPromo);
     const sel = document.getElementById('stats-select').value;
     const table = document.getElementById('stats-table');
     if (!sel) { table.innerHTML = ''; return; }
 
     let rows = [];
     if (statsMode === 'subject') {
-        rows = evsPromo
-            .filter(e => e.summary === sel)
-            .slice()
-            .sort((a, b) => a.startDt - b.startDt)
-            .map(e => ({
-                Date: e.startDt.toLocaleDateString('fr-FR'),
-                Heures: `${fmt2(e.startDt.getHours())}:${fmt2(e.startDt.getMinutes())} - ${fmt2(e.endDt.getHours())}:${fmt2(e.endDt.getMinutes())}`,
-                Enseignant: (e.teachers||[]).join(', '),
-                Groupes: (e.groups||[]).join(', ')
-            }));
+        rows = evsPromo.filter(e => e.summary === sel).map(e => ({
+            Date: e.startDt.toLocaleDateString('fr-FR'),
+            Heures: `${fmt2(e.startDt.getHours())}:${fmt2(e.startDt.getMinutes())} - ${fmt2(e.endDt.getHours())}:${fmt2(e.endDt.getMinutes())}`,
+            Enseignant: (e.teachers||[]).join(', '),
+            Groupes: (e.groups||[]).join(', ')
+        }));
         table.innerHTML = renderTableHTML(['Date','Heures','Enseignant','Groupes'], rows);
     } else {
-        rows = evsPromo
-            .filter(e => (e.teachers||[]).includes(sel))
-            .slice()
-            .sort((a, b) => a.startDt - b.startDt)
-            .map(e => ({
-                Date: e.startDt.toLocaleDateString('fr-FR'),
-                Heures: `${fmt2(e.startDt.getHours())}:${fmt2(e.startDt.getMinutes())} - ${fmt2(e.endDt.getHours())}:${fmt2(e.endDt.getMinutes())}`,
-                Matière: e.summary,
-                Groupes: (e.groups||[]).join(', ')
-            }));
+        rows = evsPromo.filter(e => (e.teachers||[]).includes(sel)).map(e => ({
+            Date: e.startDt.toLocaleDateString('fr-FR'),
+            Heures: `${fmt2(e.startDt.getHours())}:${fmt2(e.startDt.getMinutes())} - ${fmt2(e.endDt.getHours())}:${fmt2(e.endDt.getMinutes())}`,
+            Matière: e.summary,
+            Groupes: (e.groups||[]).join(', ')
+        }));
         table.innerHTML = renderTableHTML(['Date','Heures','Matière','Groupes'], rows);
     }
 }
