@@ -86,11 +86,76 @@
 
         /* FORM ELEMENTS */
         select, input[type="text"], input[type="date"] {
-            font-family: 'DM Sans', sans-serif; padding: 9px 12px; border-radius: 10px;
-            border: 1px solid var(--border); background: var(--surface); font-size: 13px;
+            font-family: 'DM Sans', sans-serif;
+            min-height: 40px;
+            padding: 9px 13px;
+            border-radius: 11px;
+            border: 1px solid var(--border);
+            background-color: var(--surface);
             color: var(--text);
+            font-size: 13px;
+            font-weight: 500;
+            transition: border-color .18s ease, box-shadow .18s ease, background-color .18s ease, transform .18s ease;
         }
-        select:focus, input:focus { outline: none; border-color: var(--accent); }
+        select {
+            appearance: none;
+            -webkit-appearance: none;
+            cursor: pointer;
+            padding-right: 38px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 14px;
+        }
+        select:hover, input[type="text"]:hover, input[type="date"]:hover {
+            border-color: #cbd5e1;
+            background-color: #fbfcfe;
+        }
+        select:focus, input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, .10);
+        }
+        select:disabled { opacity: .55; cursor: not-allowed; background-color: var(--surface-2); }
+
+        /* FILTRE TYPE EXCEL */
+        .excel-filter { position: relative; min-width: 190px; }
+        .excel-filter-btn {
+            width: 100%; min-height: 40px; padding: 9px 12px;
+            display: flex; align-items: center; justify-content: space-between; gap: 10px;
+            border: 1px solid var(--border); border-radius: 11px;
+            background: var(--surface); color: var(--text); cursor: pointer;
+            font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600;
+            transition: border-color .18s ease, box-shadow .18s ease, background-color .18s ease;
+        }
+        .excel-filter-btn:hover { border-color: #cbd5e1; background: #fbfcfe; }
+        .excel-filter.open .excel-filter-btn {
+            border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37, 99, 235, .10);
+        }
+        .excel-filter-count { color: var(--text-2); font-size: 11px; font-weight: 700; }
+        .excel-filter-menu {
+            display: none; position: absolute; top: calc(100% + 7px); left: 0; z-index: 250;
+            width: 290px; max-width: min(90vw, 290px); padding: 10px;
+            border: 1px solid var(--border); border-radius: 13px; background: var(--surface);
+            box-shadow: var(--shadow-lg);
+        }
+        .excel-filter.open .excel-filter-menu { display: block; animation: filterPop .14s ease-out; }
+        @keyframes filterPop { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+        .excel-filter-search { width: 100%; margin-bottom: 8px; padding-right: 12px !important; }
+        .excel-filter-actions { display: flex; gap: 6px; margin-bottom: 8px; }
+        .excel-filter-action {
+            flex: 1; border: 0; border-radius: 8px; padding: 6px 8px; cursor: pointer;
+            background: var(--surface-2); color: var(--text-2); font: 600 11px 'DM Sans', sans-serif;
+        }
+        .excel-filter-action:hover { color: var(--accent); background: #eff6ff; }
+        .excel-filter-list { max-height: 230px; overflow-y: auto; padding: 2px; }
+        .excel-filter-item {
+            display: flex; align-items: center; gap: 9px; padding: 7px 8px; border-radius: 8px;
+            cursor: pointer; font-size: 12.5px; color: var(--text);
+        }
+        .excel-filter-item:hover { background: var(--surface-2); }
+        .excel-filter-item input { width: 15px; height: 15px; accent-color: var(--accent); flex: 0 0 auto; }
+        .excel-filter-empty { padding: 14px 8px; text-align: center; color: var(--text-3); font-size: 12px; }
         label.field-label { font-size: 11px; font-weight: 700; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.4px; display: block; margin-bottom: 6px; }
         .field-group { margin-bottom: 14px; }
         .inline-fields { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-end; }
@@ -334,7 +399,24 @@
             </div>
             <div class="field-group" id="stats-select-wrap">
                 <label class="field-label" id="stats-select-label">Matière</label>
-                <select id="stats-select" onchange="renderStatsTable()"></select>
+                <select id="stats-select" onchange="onStatsPrimaryChange()"></select>
+            </div>
+            <div class="field-group" id="stats-filter-wrap">
+                <label class="field-label" id="stats-filter-label">Filtrer les enseignants</label>
+                <div class="excel-filter" id="stats-excel-filter">
+                    <button type="button" class="excel-filter-btn" onclick="toggleStatsExcelFilter(event)">
+                        <span><i class="bi bi-funnel"></i> <span id="stats-filter-btn-text">Tous</span></span>
+                        <span class="excel-filter-count" id="stats-filter-count"></span>
+                    </button>
+                    <div class="excel-filter-menu" onclick="event.stopPropagation()">
+                        <input type="text" id="stats-filter-search" class="excel-filter-search" placeholder="Rechercher…" oninput="renderStatsExcelFilter()">
+                        <div class="excel-filter-actions">
+                            <button type="button" class="excel-filter-action" onclick="setStatsExcelFilterAll(true)">Tout cocher</button>
+                            <button type="button" class="excel-filter-action" onclick="setStatsExcelFilterAll(false)">Tout décocher</button>
+                        </div>
+                        <div class="excel-filter-list" id="stats-filter-list"></div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -464,6 +546,8 @@ let mailTone = 'tutoiement';
 let statsMode = 'subject';
 let statsPromo = 'P1';
 let statsGroup = ''; // vide = tous les groupes
+let statsSecondaryFilter = null; // null = toutes les valeurs cochées
+let statsFilterKnownValues = new Set();
 let maquettePromo = 'P1';
 let budgetPromo = 'P1';
 
@@ -684,22 +768,35 @@ function initStatsTab() {
         `<button class="pill-btn${p===statsPromo?' active':''}" onclick="setStatsPromo('${p}')">${p}</button>`
     ).join('');
 
+    if (!window.__statsFilterOutsideBound) {
+        document.addEventListener('click', () => {
+            const root = document.getElementById('stats-excel-filter');
+            if (root) root.classList.remove('open');
+        });
+        window.__statsFilterOutsideBound = true;
+    }
+
     renderStatsGroupSelect();
 }
 
 function setStatsPromo(promo) {
+    const previousPrimary = document.getElementById('stats-select')?.value || '';
     statsPromo = promo;
     statsGroup = '';
+    statsSecondaryFilter = null;
+    statsFilterKnownValues = new Set();
     document.querySelectorAll('#stats-promo-pills .pill-btn').forEach(b => b.classList.toggle('active', b.textContent.trim() === promo));
-    renderStatsGroupSelect();
+    renderStatsGroupSelect(previousPrimary);
 }
 
 function setStatsGroup(group) {
     statsGroup = group || '';
-    renderStatsSelect();
+    // Important : on conserve le choix Matière / Enseignant si cette valeur
+    // existe encore dans le nouveau groupe.
+    renderStatsSelect(true);
 }
 
-function renderStatsGroupSelect() {
+function renderStatsGroupSelect(preferredPrimary = '') {
     const evsPromo = getPromoEvents(statsPromo);
     const groups = Array.from(new Set(
         evsPromo.flatMap(e => (e.groups || []).filter(Boolean))
@@ -709,7 +806,7 @@ function renderStatsGroupSelect() {
     sel.innerHTML = '<option value="">Tous les groupes</option>' +
         groups.map(g => `<option value="${esc(g)}">${esc(g)}</option>`).join('');
     sel.value = statsGroup;
-    renderStatsSelect();
+    renderStatsSelect(true, preferredPrimary);
 }
 
 function getStatsEvents() {
@@ -717,7 +814,7 @@ function getStatsEvents() {
     if (!statsGroup) return evsPromo;
 
     // Une séance sans groupe explicite concerne toute la promo :
-    // elle reste donc visible lorsqu'un groupe précis est sélectionné.
+    // elle reste visible lorsqu'un groupe précis est sélectionné.
     return evsPromo.filter(e =>
         !e.groups || e.groups.length === 0 || groupMatches(e.groups, statsGroup)
     );
@@ -725,34 +822,142 @@ function getStatsEvents() {
 
 function setStatsMode(mode) {
     statsMode = mode;
+    statsSecondaryFilter = null;
+    statsFilterKnownValues = new Set();
     document.querySelectorAll('#panel-stats [data-mode]').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
     document.getElementById('stats-select-label').textContent = mode === 'subject' ? 'Matière' : 'Enseignant';
-    renderStatsSelect();
+    document.getElementById('stats-filter-label').textContent = mode === 'subject' ? 'Filtrer les enseignants' : 'Filtrer les matières';
+    renderStatsSelect(false);
 }
 
 function getPromoEvents(promo) {
     return promo === 'P1' ? DATA.events_p1 : DATA.events_p2;
 }
 
-function renderStatsSelect() {
+function renderStatsSelect(preserveCurrent = true, preferredValue = '') {
     const evsPromo = getStatsEvents();
     const sel = document.getElementById('stats-select');
+    const currentValue = preferredValue || (preserveCurrent ? sel.value : '');
 
     let options;
     if (statsMode === 'subject') {
-        options = Array.from(new Set(evsPromo.map(e => e.summary))).sort();
+        options = Array.from(new Set(evsPromo.map(e => e.summary))).sort((a,b) => a.localeCompare(b, 'fr', {sensitivity:'base'}));
     } else {
         const t = new Set();
         for (const e of evsPromo) for (const teacher of (e.teachers||[])) t.add(teacher);
-        options = Array.from(t).sort();
+        options = Array.from(t).sort((a,b) => a.localeCompare(b, 'fr', {sensitivity:'base'}));
     }
 
     if (options.length === 0) {
         sel.innerHTML = '<option value="">-</option>';
     } else {
         sel.innerHTML = options.map(o => `<option value="${esc(o)}">${esc(o)}</option>`).join('');
+        // Ne pas remettre systématiquement la première matière quand le groupe change.
+        if (currentValue && options.includes(currentValue)) sel.value = currentValue;
     }
+
+    const primaryChanged = currentValue && sel.value !== currentValue;
+    if (primaryChanged || !preserveCurrent) {
+        statsSecondaryFilter = null;
+        statsFilterKnownValues = new Set();
+    }
+
+    renderStatsExcelFilter();
     renderStatsTable();
+}
+
+function onStatsPrimaryChange() {
+    statsSecondaryFilter = null;
+    statsFilterKnownValues = new Set();
+    renderStatsExcelFilter();
+    renderStatsTable();
+}
+
+function getStatsSecondaryCandidates() {
+    const events = getStatsEvents();
+    const primary = document.getElementById('stats-select').value;
+    if (!primary) return [];
+
+    let values = [];
+    if (statsMode === 'subject') {
+        values = events
+            .filter(e => e.summary === primary)
+            .flatMap(e => e.teachers || []);
+    } else {
+        values = events
+            .filter(e => (e.teachers || []).includes(primary))
+            .map(e => e.summary);
+    }
+    return Array.from(new Set(values.filter(Boolean)))
+        .sort((a,b) => a.localeCompare(b, 'fr', {numeric:true, sensitivity:'base'}));
+}
+
+function renderStatsExcelFilter() {
+    const candidates = getStatsSecondaryCandidates();
+    const list = document.getElementById('stats-filter-list');
+    const btnText = document.getElementById('stats-filter-btn-text');
+    const count = document.getElementById('stats-filter-count');
+    if (!list || !btnText || !count) return;
+
+    if (statsSecondaryFilter === null) {
+        statsSecondaryFilter = new Set(candidates);
+    } else {
+        // Conserver les coches existantes. Toute nouvelle valeur apparue à la suite
+        // d'un changement de groupe est cochée par défaut.
+        statsSecondaryFilter = new Set(candidates.filter(v =>
+            statsSecondaryFilter.has(v) || !statsFilterKnownValues.has(v)
+        ));
+    }
+    statsFilterKnownValues = new Set(candidates);
+
+    const search = normStr(document.getElementById('stats-filter-search')?.value || '');
+    const visible = candidates.filter(v => !search || normStr(v).includes(search));
+
+    list.innerHTML = visible.length
+        ? visible.map(v => `
+            <label class="excel-filter-item">
+                <input type="checkbox" ${statsSecondaryFilter.has(v) ? 'checked' : ''}
+                       onchange="toggleStatsExcelFilterValue('${esc(v).replace(/'/g, "\\'")}', this.checked)">
+                <span>${esc(v)}</span>
+            </label>`).join('')
+        : '<div class="excel-filter-empty">Aucune valeur</div>';
+
+    const checked = statsSecondaryFilter.size;
+    const total = candidates.length;
+    btnText.textContent = checked === total ? 'Tous' : (checked === 0 ? 'Aucun' : `${checked} sélectionné${checked > 1 ? 's' : ''}`);
+    count.textContent = total ? `${checked}/${total}` : '';
+}
+
+function toggleStatsExcelFilter(event) {
+    event.stopPropagation();
+    document.getElementById('stats-excel-filter')?.classList.toggle('open');
+}
+
+function toggleStatsExcelFilterValue(value, checked) {
+    if (!(statsSecondaryFilter instanceof Set)) statsSecondaryFilter = new Set(getStatsSecondaryCandidates());
+    if (checked) statsSecondaryFilter.add(value);
+    else statsSecondaryFilter.delete(value);
+    renderStatsExcelFilter();
+    renderStatsTable();
+}
+
+function setStatsExcelFilterAll(checked) {
+    const candidates = getStatsSecondaryCandidates();
+    statsSecondaryFilter = checked ? new Set(candidates) : new Set();
+    statsFilterKnownValues = new Set(candidates);
+    renderStatsExcelFilter();
+    renderStatsTable();
+}
+
+function statsEventPassesSecondaryFilter(e) {
+    if (!(statsSecondaryFilter instanceof Set)) return true;
+    if (statsMode === 'subject') {
+        const vals = e.teachers || [];
+        // Une séance sans enseignant reste visible uniquement si aucune valeur de filtre n'existe.
+        if (!vals.length) return getStatsSecondaryCandidates().length === 0;
+        return vals.some(v => statsSecondaryFilter.has(v));
+    }
+    return statsSecondaryFilter.has(e.summary);
 }
 
 function renderStatsTable() {
@@ -765,6 +970,7 @@ function renderStatsTable() {
     if (statsMode === 'subject') {
         rows = evsPromo
             .filter(e => e.summary === sel)
+            .filter(statsEventPassesSecondaryFilter)
             .slice()
             .sort((a, b) => a.startDt - b.startDt)
             .map(e => ({
@@ -777,6 +983,7 @@ function renderStatsTable() {
     } else {
         rows = evsPromo
             .filter(e => (e.teachers||[]).includes(sel))
+            .filter(statsEventPassesSecondaryFilter)
             .slice()
             .sort((a, b) => a.startDt - b.startDt)
             .map(e => ({
