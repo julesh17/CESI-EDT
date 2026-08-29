@@ -390,6 +390,13 @@
                     <option value="">Tous les groupes</option>
                 </select>
             </div>
+            <div class="field-group" id="stats-group-scope-wrap" style="display:none;">
+                <label class="field-label">Portée du groupe</label>
+                <select id="stats-group-scope-select" onchange="setStatsGroupScope(this.value)">
+                    <option value="includes">Toutes les séances du groupe</option>
+                    <option value="only">Groupe uniquement</option>
+                </select>
+            </div>
             <div class="field-group">
                 <label class="field-label">Vue</label>
                 <div class="pill-group">
@@ -546,6 +553,7 @@ let mailTone = 'tutoiement';
 let statsMode = 'subject';
 let statsPromo = 'P1';
 let statsGroup = ''; // vide = tous les groupes
+let statsGroupScope = 'includes'; // includes = groupe + séances partagées ; only = groupe seul
 let statsSecondaryFilter = null; // null = toutes les valeurs cochées
 let statsFilterKnownValues = new Set();
 let maquettePromo = 'P1';
@@ -783,6 +791,7 @@ function setStatsPromo(promo) {
     const previousPrimary = document.getElementById('stats-select')?.value || '';
     statsPromo = promo;
     statsGroup = '';
+    statsGroupScope = 'includes';
     statsSecondaryFilter = null;
     statsFilterKnownValues = new Set();
     document.querySelectorAll('#stats-promo-pills .pill-btn').forEach(b => b.classList.toggle('active', b.textContent.trim() === promo));
@@ -791,8 +800,27 @@ function setStatsPromo(promo) {
 
 function setStatsGroup(group) {
     statsGroup = group || '';
-    // Important : on conserve le choix Matière / Enseignant si cette valeur
-    // existe encore dans le nouveau groupe.
+    const scopeWrap = document.getElementById('stats-group-scope-wrap');
+    const scopeSel = document.getElementById('stats-group-scope-select');
+
+    if (scopeWrap) scopeWrap.style.display = statsGroup ? '' : 'none';
+    if (scopeSel) {
+        scopeSel.options[0].textContent = statsGroup
+            ? `${statsGroup} + séances partagées`
+            : 'Toutes les séances du groupe';
+        scopeSel.options[1].textContent = statsGroup
+            ? `${statsGroup} uniquement`
+            : 'Groupe uniquement';
+        scopeSel.value = statsGroupScope;
+    }
+
+    // Conserver la matière / l’enseignant sélectionné si possible.
+    renderStatsSelect(true);
+}
+
+function setStatsGroupScope(scope) {
+    statsGroupScope = scope === 'only' ? 'only' : 'includes';
+    // Le changement de portée ne doit pas réinitialiser la matière / l’enseignant.
     renderStatsSelect(true);
 }
 
@@ -806,6 +834,16 @@ function renderStatsGroupSelect(preferredPrimary = '') {
     sel.innerHTML = '<option value="">Tous les groupes</option>' +
         groups.map(g => `<option value="${esc(g)}">${esc(g)}</option>`).join('');
     sel.value = statsGroup;
+
+    const scopeWrap = document.getElementById('stats-group-scope-wrap');
+    const scopeSel = document.getElementById('stats-group-scope-select');
+    if (scopeWrap) scopeWrap.style.display = statsGroup ? '' : 'none';
+    if (scopeSel) {
+        scopeSel.options[0].textContent = statsGroup ? `${statsGroup} + séances partagées` : 'Toutes les séances du groupe';
+        scopeSel.options[1].textContent = statsGroup ? `${statsGroup} uniquement` : 'Groupe uniquement';
+        scopeSel.value = statsGroupScope;
+    }
+
     renderStatsSelect(true, preferredPrimary);
 }
 
@@ -813,11 +851,19 @@ function getStatsEvents() {
     const evsPromo = getPromoEvents(statsPromo);
     if (!statsGroup) return evsPromo;
 
-    // Une séance sans groupe explicite concerne toute la promo :
-    // elle reste visible lorsqu'un groupe précis est sélectionné.
-    return evsPromo.filter(e =>
-        !e.groups || e.groups.length === 0 || groupMatches(e.groups, statsGroup)
-    );
+    return evsPromo.filter(e => {
+        const groups = (e.groups || []).filter(Boolean);
+
+        if (statsGroupScope === 'only') {
+            // Ex. G 1 uniquement : garder seulement les séances dont le seul groupe
+            // explicite est G 1. Une séance G 1 + G 2 est donc exclue.
+            return groups.length === 1 && groupMatches(groups, statsGroup);
+        }
+
+        // Ex. G 1 + séances partagées : garder G 1 seul, G 1 + G 2,
+        // ainsi que les séances sans groupe explicite (promo entière).
+        return groups.length === 0 || groupMatches(groups, statsGroup);
+    });
 }
 
 function setStatsMode(mode) {
